@@ -1,0 +1,33 @@
+import numpy as np
+
+#Import and clean the dataset - we need a big dataset that everyone can use, so we will just use stock data.
+import yfinance as yf
+import pandas as pd
+import matplotlib.pyplot as plt
+import seaborn as sns
+
+#Define stock symbol and date range
+symbol = "SPY" #The ETF that tracks the S&P 500 Index
+start_date = "2000-01-01"
+end_date = "2023-12-31"
+
+#Download the data
+data = yf.download(symbol, start=start_date, end=end_date)
+
+#Extract the closing prices
+close_prices = data["Close"].values
+
+plt.figure(figsize=(12, 6))
+plt.plot(data.index, close_prices)
+plt.title(f"{symbol} Closing Price")
+plt.xlabel("Date")
+plt.ylabel("Closing Price")
+plt.show()
+
+#Normalize the data
+close_prices_normalized = (close_prices - close_prices.min()) / (close_prices.max() - close_prices.min())
+
+#Split the data into training and testing sets
+split_index = int(0.8 * len(close_prices_normalized))
+train_data = close_prices_normalized[:split_index]
+test_data = close_prices_normalized[split_index:]
