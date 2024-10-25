@@ -1,0 +1,112 @@
+import numpy as np
+import torch
+import torch.nn as nn
+import torch.optim as optim
+from sklearn.preprocessing import MinMaxScaler
+from sklearn.metrics import mean_squared_error
+
+#Define the RNN model
+class StockPriceRNN(nn.Module):
+    def __init__(self, input_size=1, hidden_size=50, output_size=1, num_layers=1):
+        super(StockPriceRNN, self).__init__()
+        self.hidden_size = hidden_size
+        self.num_layers = num_layers
+        self.rnn = nn.RNN(input_size, hidden_size, num_layers, batch_first=True)
+        self.fc = nn.Linear(hidden_size, output_size)
+      
+    def forward(self, x):
+        #Initialize the hidden state
+        h0 = torch.zeros(self.num_layers, x.size(0), self.hidden_size).to(x.device)
+
+        #Forward propigation through the RNN
+        out, _ = self.rnn(x, h0)
+
+        #Only the last output for the prediction
+        out = self.fc(out[:, -1, :])
+        return out
+
+#Set up the model, loss, and optimizer
+model = StockPriceRNN()
+criterion = nn.MSELoss()
+optimizer = optim.Adam(model.parameters(), lr=0.001)
+
+#Normalize stock prices using MinMaxScaler
+scaler = MinMaxScaler()
+scaled_data = scaler.fit_transform(close_prices.reshape(-1, 1))
+
+#Convert the data into sequences
+sequence_length = 10 #Number of days in each sequence
+X_rnn, Y_rnn = [], []
+for i in range(len(scaled_data) - sequence_length):
+    X_rnn.append(scaled_data[i:i+sequence_length])
+    Y_rnn.append(scaled_data[i+sequence_length])
+
+X_rnn = torch.tensor(X_rnn, dtype = torch.float32)
+Y_rnn = torch.tensor(Y_rnn, dtype = torch.float32)
+
+#Train Test Split
+split_index = int(0.8 * len(X_rnn))
+X_train, X_test = X_rnn[:split_index], X_rnn[split_index:]
+Y_train, Y_test = Y_rnn[:split_index], Y_rnn[split_index:]
+
+#Train the model
+#Training loop
+num_epochs = 100
+for epoch in range(num_epochs):
+    model.train()
+    optimizer.zero_grad()
+    outputs = model(X_train)
+    loss = criterion(outputs, Y_train)
+    loss.backward()
+    optimizer.step()
+
+    if (epoch + 1) % 10 == 0:
+        print(f"Epoch [{epoch+1}/{num_epochs}], Loss: {loss.item():.4f}")
+RNN_predictions = model(X_test)
+
+#Test the model
+# Get the corresponding date range for the test data
+test_dates = data.index[split_index + 1:]  # Align with actual_prices length
+
+#De-normalize predictions for comparison with actual values
+predicted_prices = RNN_predictions * (close_prices.max() - close_prices.min()) + close_prices.min()
+
+# Adjust the slicing of actual_prices to match the length of predicted_prices
+actual_prices = close_prices[split_index + 1:split_index + 1 + len(predicted_prices)]
+
+# Ensure lengths match by adjusting test_dates
+test_dates_adjusted = test_dates[:len(predicted_prices)]
+
+# Confirm lengths to avoid mismatches
+print(len(test_dates_adjusted), len(predicted_prices), len(actual_prices))
+
+#Detatch the gradient and convert to NumPy array
+predicted_prices = predicted_prices.detach().numpy()
+
+# Plot actual vs. predicted prices with aligned dates
+plt.figure(figsize=(12, 6))
+plt.plot(test_dates_adjusted, actual_prices, label="Actual Prices")
+plt.plot(test_dates_adjusted, predicted_prices, label="RNN Predicted Prices")
+plt.title("S&P 500 Actual vs RNN Predicted Prices")
+plt.xlabel("Date")
+plt.ylabel("Price")
+plt.xticks(rotation=45)
+plt.legend()
+plt.tight_layout()
+plt.show()
+
+# Calculate the percent error for the RNN predictions
+percent_error_rnn = (actual_prices - predicted_prices) / actual_prices * 100
+
+# Plot the percent error with dates on the x-axis
+plt.figure(figsize=(12, 6))
+plt.plot(test_dates_adjusted, percent_error_rnn, label="RNN Percent Error")
+plt.title("RNN Prediction Percent Error Over Time")
+plt.xlabel("Date")
+plt.ylabel("Percent Error (%)")
+plt.axhline(0, color="gray", linestyle="--")  # Add a reference line at 0
+plt.xticks(rotation=45)  # Rotate dates for better readability
+plt.legend()
+plt.tight_layout()
+plt.show()
+
