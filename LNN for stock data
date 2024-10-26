@@ -5,7 +5,7 @@ import torch.optim as optim
 from sklearn.preprocessing import MinMaxScaler
 from sklearn.metrics import mean_squared_error
 from sklearn.linear_model import Ridge
-
+ 
 class LiquidNeuralNetwork:
     def __init__(self, input_size, reservoir_size, spectral_radius=0.95, sparsity=0.1):
         self.input_size = input_size
